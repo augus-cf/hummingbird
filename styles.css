@@ -24,9 +24,9 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr 0.8fr;
   grid-template-rows: 45% 55%;
-  gap: 16px;
+  gap: 10px;
   flex-grow: 1;
-  padding: 16px;
+  padding: 5px;
   height: calc(100vh - 70px);
 }
 
@@ -34,7 +34,7 @@ h1 {
   border-radius: 14px;
   background: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 16px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -62,7 +62,7 @@ h2 {
   font-weight: 700;
   color: #333;
   text-align: center;
-  margin-top: 5px;
+  margin-top: 1px;
   margin-bottom: 5px;
 }
 
@@ -208,3 +208,4 @@ canvas {
   transition: opacity 0.3s;
   z-index: 999;
 }
+
