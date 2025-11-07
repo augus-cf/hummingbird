@@ -317,7 +317,7 @@ function drawFullChart(canvas, labels, values, color, wrapper) {
   const barWidth = width / labels.length;
   ctx.clearRect(0, 0, width, height);
   ctx.textAlign = "center";
-  ctx.font = "10px Inter";
+  ctx.font = "12px Inter";
   labels.forEach((label, i) => {
     const val = values[i];
     const x = i * barWidth + barWidth / 2;
@@ -386,10 +386,10 @@ searchInput.addEventListener("keydown", (event) => {
   resultBox.style.color = textColor;
   resultBox.innerHTML = found
     ? `
-      <h2><b>${found.trailerId}</b></h2>
-      <p><b>Container:</b> ${foundData.container.scannableId}</p>
+      <h1><b>${found.trailerId}</b></h1>
+      <h3><b>Container:</b> ${foundData.container.scannableId}</h3>
       <p><b>Type:</b> ${foundData.scannableId}</p>
-      <p><b>Quantity:</b> ${foundData.quantityItems || 0}</p>
+      <h3><b>Quantity:</b> ${foundData.quantityItems || 0}</h3>
       <p><b>Status:</b> ${foundData.containerStatus}</p>
     `
     : `<strong>No match found for:</strong> ${id}`;
