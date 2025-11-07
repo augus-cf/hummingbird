@@ -1,5 +1,7 @@
+const PREFIXES_json = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "csX", "tsX", "pk"];
 const PREFIXES = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "pk"];
-const MAX_DATASETS = 20;
+
+const MAX_DATASETS = 21;
 const baseURL = "https://qi-fcresearch-na.corp.amazon.com/YHM1/results?s=";
 const colorPalette = [
   "#ffadad", // soft coral red
@@ -25,6 +27,113 @@ const colorPalette = [
 ];
 let datasets = [];
 
+// --- Filtering utilities (preserve only needed containers) ---
+// Utility: test prefix match
+function matchesPrefix(scannableId) {
+  if (!scannableId || typeof scannableId !== "string") return false;
+  return PREFIXES_json.some((pj) => scannableId.startsWith(pj));
+}
+
+// Recursive filter function:
+// Returns array of filtered nodes (each contains container.scannableId, quantityItems, and childContainers if any).
+function filterContainers(containers) {
+  if (!Array.isArray(containers)) return [];
+  const out = [];
+  for (const node of containers) {
+    const scannableId =
+      node && node.container && node.container.scannableId
+        ? node.container.scannableId
+        : "";
+    // start with original numeric quantity
+    let quantity = Number(node.quantityItems || 0);
+    const children = Array.isArray(node.childContainers)
+      ? node.childContainers
+      : [];
+
+    const filteredChildren = filterContainers(children);
+
+    // ensure nodes with the "pk" prefix are kept regardless of original qty
+    const nodeMatches =
+      matchesPrefix(scannableId) &&
+      (quantity > 0 || scannableId.startsWith("pk"));
+    // Keep node if it matches itself (and qty>0) OR any children matched.
+    if (nodeMatches || filteredChildren.length) {
+      // force quantityItems = 101 for any scannableId that starts with "pk"
+      if (scannableId.startsWith("pk")) {
+        quantity = 101;
+      }
+      const reduced = {
+        container: { scannableId: scannableId || null },
+        quantityItems: quantity,
+      };
+      if (filteredChildren.length) reduced.childContainers = filteredChildren;
+      out.push(reduced);
+    }
+  }
+  return out;
+}
+
+// Top-level fields we will preserve if present
+const topFields = [
+  "containerStatusMap",
+  "amazonShipmentRefId",
+  "trailerId",
+  "itemQuantity",
+  "itemQuantityLeftToStow",
+  "palletQuantity",
+  "toteQuantity",
+  "caseQuantity",
+  "stowByDate",
+  "receivedByUserId",
+  "sourceWarehouseId",
+  "destinationWarehouseId",
+  "departTime",
+  "arrivalTime",
+  "dockAppointmentId",
+  "transferStatus",
+  "dockAppointmentTime",
+  "dockArrivalTime",
+  "lastUpdatedDate",
+  "containerLvlReceive",
+  "throttlingOccurred",
+];
+
+function processInput(text) {
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error("Invalid JSON: " + err.message);
+  }
+  const filteredHierarchy = filterContainers(
+    parsed.transferContainerHierarchy || []
+  );
+  const out = { transferContainerHierarchy: filteredHierarchy };
+  for (const k of topFields) {
+    if (k in parsed) out[k] = parsed[k];
+  }
+  return out;
+}
+
+// Enable/disable the Load button based on trimmed input and dataset capacity
+function updateLoadButtonState() {
+  try {
+    const hasText = !!jsonInput.value && jsonInput.value.trim().length > 0;
+    const atMax = datasets.length >= MAX_DATASETS;
+    loadJson.disabled = !hasText || atMax;
+    // optionally provide a tooltip when disabled due to max
+    if (loadJson.disabled && atMax) {
+      loadJson.title = `Maximum of ${MAX_DATASETS} datasets reached`;
+    } else {
+      loadJson.title = hasText ? "Load JSON" : "Paste JSON to enable";
+    }
+  } catch (e) {
+    // defensive: if elements not yet available, ignore
+  }
+}
+
+// (moved later so DOM elements are available)
+
 const troubleshoot = document.getElementById("troubleshoot");
 const fcresearch = document.getElementById("fcresearch");
 const troubleshootCount = document.getElementById("troubleshoot-count");
@@ -40,6 +149,43 @@ const searchInput = document.getElementById("searchInput");
 const searchBtn = document.getElementById("searchBtn");
 const clearBtn = document.getElementById("clearBtn");
 const searchHistory = document.getElementById("searchHistory");
+
+// wire up json input helpers: input -> update button state, paste & drop -> trim
+jsonInput.addEventListener("input", updateLoadButtonState);
+
+jsonInput.addEventListener("paste", (e) => {
+  try {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    jsonInput.value = text ? text.trim() : "";
+    updateLoadButtonState();
+  } catch (err) {
+    // fallback: let default behavior occur
+  }
+});
+
+jsonInput.addEventListener("dragover", (e) => e.preventDefault());
+jsonInput.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const dt = e.dataTransfer;
+  if (dt && dt.files && dt.files.length) {
+    const f = dt.files[0];
+    // read file content if possible
+    if (f && typeof f.text === "function") {
+      f.text()
+        .then((t) => {
+          jsonInput.value = t ? t.trim() : "";
+          updateLoadButtonState();
+        })
+        .catch(() => showModal("Unable to read dropped file."));
+      return;
+    }
+  }
+  // fallback to plain text drop
+  const text = (dt && dt.getData && dt.getData("text")) || "";
+  jsonInput.value = text.trim();
+  updateLoadButtonState();
+});
 
 const getIDs = (text) =>
   text
@@ -64,22 +210,40 @@ openLinks.addEventListener("click", () => {
 window.addEventListener("load", () => {
   datasets = JSON.parse(localStorage.getItem("jsonDatasets") || "[]");
   renderAll();
+  // ensure Load button initial state reflects current input and datasets
+  updateLoadButtonState();
 });
 
-loadJson.addEventListener("click", () => {
+loadJson.addEventListener("click", async () => {
   if (!jsonInput.value.trim()) return showModal("Paste JSON first.");
-  if (datasets.length >= MAX_DATASETS) return showModal("Max 20 datasets.");
+  if (datasets.length >= MAX_DATASETS)
+    return showModal(`Max ${MAX_DATASETS} datasets.`);
+  // Prevent double-clicks or re-entry while processing
+  if (loadJson.disabled) return;
+
+  const labelEl = loadJson.querySelector(".btn-label");
+  const prevLabel = labelEl ? labelEl.textContent : "";
+  loadJson.disabled = true;
+  loadJson.classList.add("loading");
+  if (labelEl) labelEl.textContent = "Loading...";
   try {
-    const d = JSON.parse(jsonInput.value);
+    // yield to the event loop so the UI can reflect the disabled state and spinner
+    await new Promise((r) => setTimeout(r, 20));
+    // Process and filter incoming JSON according to rules in processInput()
+    const processed = processInput(jsonInput.value);
     const color = colorPalette[datasets.length % colorPalette.length];
-    d.color = color;
-    d.trailerId = d.trailerId || `Dataset ${datasets.length + 1}`;
-    datasets.push(d);
+    processed.color = color;
+    processed.trailerId = processed.trailerId || `Dataset ${datasets.length + 1}`;
+    datasets.push(processed);
     localStorage.setItem("jsonDatasets", JSON.stringify(datasets));
     jsonInput.value = "";
     renderAll();
-  } catch {
-    showModal("Invalid JSON format.");
+  } catch (err) {
+    showModal(err && err.message ? err.message : "Invalid JSON format.");
+  } finally {
+    if (labelEl) labelEl.textContent = prevLabel;
+    loadJson.classList.remove("loading");
+    updateLoadButtonState();
   }
 });
 
@@ -87,6 +251,7 @@ clearAll.addEventListener("click", () => {
   localStorage.removeItem("jsonDatasets");
   datasets = [];
   renderAll();
+  updateLoadButtonState();
 });
 
 function renderAll() {
@@ -101,13 +266,10 @@ function renderButtons() {
     return (trailerButtons.innerHTML = '<p style="color:#999;">No data.</p>');
   datasets.forEach((d) => {
     const b = document.createElement("div");
+    b.className = "trailer-item";
     b.textContent = d.trailerId;
+    // keep color inline so each tile keeps its assigned color
     b.style.background = d.color;
-    b.style.padding = "6px 8px";
-    b.style.margin = "3px";
-    b.style.borderRadius = "6px";
-    b.style.cursor = "pointer";
-    b.style.fontWeight = "600";
     b.onclick = () => renderChart(d);
     trailerButtons.appendChild(b);
   });
@@ -226,7 +388,7 @@ searchInput.addEventListener("keydown", (event) => {
     ? `
       <h2><b>${found.trailerId}</b></h2>
       <p><b>Container:</b> ${foundData.container.scannableId}</p>
-      <p><b>Type:</b> ${foundData.container.containerType}</p>
+      <p><b>Type:</b> ${foundData.scannableId}</p>
       <p><b>Quantity:</b> ${foundData.quantityItems || 0}</p>
       <p><b>Status:</b> ${foundData.containerStatus}</p>
     `

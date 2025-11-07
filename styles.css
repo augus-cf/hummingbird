@@ -76,17 +76,58 @@ textarea {
   font-family: monospace;
   font-size: 13px;
   background: #fafafa;
-  outline: none;
 }
 
 .btn {
   border: none;
   border-radius: 8px;
-  padding: 8px 14px;
+  padding: 4px 7px;
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
   color: white;
+}
+
+#troubleshoot:focus {
+  outline: none;
+  border-color: #000d49;
+  box-shadow: 0 0 0 2px rgba(0, 11, 60, 0.25);
+}
+
+#jsonInput {
+  flex-grow: 1;
+  background: #fafafa;
+  border: 1px solid #ccc;
+  font-size: 13px;
+  max-height: 40px;
+}
+/* Disabled button appearance and loading spinner */
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn .spinner {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.btn.loading .spinner {
+  display: inline-block;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 #open-links {
@@ -120,6 +161,33 @@ textarea {
   font-size: 13px;
 }
 
+/* Trailer buttons grid: 4 columns, show up to 5 rows (scroll if more) */
+#trailerButtons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 30px;
+  gap: 8px;
+  align-content: start;
+  /* approximate height for 5 rows + gaps; adjust if you change row size */
+  max-height: 240px;
+  overflow: auto;
+  padding: 6px;
+}
+
+.trailer-item {
+  padding: 4px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #charts {
   flex: 1;
   overflow: auto;
@@ -142,7 +210,7 @@ canvas {
 
 .chart-label {
   position: absolute;
-  bottom: 5px;
+  bottom: 20px;
   font-size: 11px;
   writing-mode: sideways-lr;
   text-orientation: mixed;
@@ -155,6 +223,8 @@ canvas {
 }
 
 .chart-label:hover {
+  font-weight: 600;
+  font-size: 13px;
   color: #0056b3;
   text-decoration: underline;
 }

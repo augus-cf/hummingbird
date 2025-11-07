@@ -26,7 +26,7 @@
           Troubleshoot: <span id="troubleshoot-count">0</span> | FCResearch:
           <span id="fcresearch-count">0</span>
         </div>
-        <button id="open-links" class="btn">Open Unique Links</button>
+        <button id="open-links" class="btn">Open Staged Containers</button>
       </div>
 
       <!-- JSON Input -->
@@ -34,7 +34,10 @@
         <h2>JSON Loader</h2>
         <textarea id="jsonInput" placeholder="Paste JSON here..."></textarea>
         <div style="display: flex; gap: 10px; margin-top: 8px">
-          <button id="loadJson" class="btn" style="flex: 1">Load</button>
+          <button id="loadJson" class="btn" style="flex: 1">
+            <span class="btn-label">Load</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
           <button id="clearAll" class="btn" style="flex: 1">Clear</button>
         </div>
         <div class="scroll-list" id="trailerButtons" style="margin-top: 8px">
