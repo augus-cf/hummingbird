@@ -2,7 +2,7 @@ const PREFIXES_json = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "csX", 
 const PREFIXES = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "pk"];
 
 const MAX_DATASETS = 21;
-const baseURL = "https://qi-fcresearch-na.corp.amazon.com/YHM1/results?s=";
+const baseURL = "https://fcresearch-na.aka.amazon.com/YHM1/results?s=";
 const colorPalette = [
   "#ffadad", // soft coral red
   "#ffd6a5", // warm peach
@@ -430,3 +430,4 @@ function showModal(msg) {
     setTimeout(() => m.remove(), 300);
   }, 2000);
 }
+
