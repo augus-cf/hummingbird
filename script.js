@@ -1,6 +1,5 @@
-const PREFIXES_json = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "csX", "tsX", "pk"];
+const PREFIXES_json = ["pc99", "paX",  "PALLET", "pb", "dz-P-A", "cvFMS", "csX", "tsX", "pk"];
 const PREFIXES = ["pc99", "paX", "PALLET", "pb", "dz-P-A", "cvFMS", "pk"];
-
 const MAX_DATASETS = 21;
 const baseURL = "https://fcresearch-na.aka.amazon.com/YHM1/results?s=";
 const colorPalette = [
@@ -233,7 +232,8 @@ loadJson.addEventListener("click", async () => {
     const processed = processInput(jsonInput.value);
     const color = colorPalette[datasets.length % colorPalette.length];
     processed.color = color;
-    processed.trailerId = processed.trailerId || `Dataset ${datasets.length + 1}`;
+    processed.trailerId =
+      processed.trailerId || `Dataset ${datasets.length + 1}`;
     datasets.push(processed);
     localStorage.setItem("jsonDatasets", JSON.stringify(datasets));
     jsonInput.value = "";
@@ -303,10 +303,13 @@ function renderChart(dataset) {
   charts.appendChild(wrapper);
   const canvas = document.createElement("canvas");
   wrapper.appendChild(canvas);
-  drawFullChart(canvas, labels, values, dataset.color, wrapper);
+  drawFullChart(canvas, labels, values, dataset.color, wrapper, dataset);
 }
 
-function drawFullChart(canvas, labels, values, color, wrapper) {
+function drawFullChart(canvas, labels, values, color, wrapper, dataset) {
+  // Store dataset reference on wrapper for click handlers
+  wrapper._chartDataset = dataset;
+  
   const ctx = canvas.getContext("2d");
   const width = Math.max(labels.length * 60, charts.clientWidth - 40);
   const height = charts.clientHeight - 60;
@@ -334,8 +337,71 @@ function drawFullChart(canvas, labels, values, color, wrapper) {
     lbl.target = "_blank";
     lbl.style.left = `${x - barWidth / 2 + 10}px`;
     lbl.style.width = `${barWidth - 10}px`;
+    
+    // Add click handler to copy child containers to troubleshoot
+    lbl.addEventListener("click", (e) => {
+      // Allow Ctrl+click or Cmd+click to open link normally
+      if (e.ctrlKey || e.metaKey) {
+        return;
+      }
+      e.preventDefault();
+      
+      // Get dataset from wrapper
+      const storedDataset = wrapper._chartDataset;
+      const scannableId = label;
+      
+      // Find the container in the dataset
+      let container = null;
+      for (const rootContainer of storedDataset.transferContainerHierarchy || []) {
+        container = findContainer(rootContainer, scannableId);
+        if (container) break;
+      }
+      
+      if (!container) {
+        showModal("Container not found in dataset.");
+        return;
+      }
+      
+      // Collect all child scannableIds
+      const childIds = collectChildScannableIds(container);
+      
+      if (childIds.length === 0) {
+        showModal("No child containers found.");
+        return;
+      }
+      
+      // Clear and populate troubleshoot textarea
+      troubleshoot.value = childIds.join("\n");
+      updateCounts();
+    });
+    
     wrapper.appendChild(lbl);
   });
+}
+
+// === Helper function to collect child scannableIds ===
+function collectChildScannableIds(container) {
+  const ids = [];
+  if (!container || !Array.isArray(container.childContainers)) {
+    return ids;
+  }
+  
+  function traverse(containerNode) {
+    if (!containerNode || !containerNode.childContainers) return;
+    
+    for (const child of containerNode.childContainers) {
+      if (child.container?.scannableId) {
+        ids.push(child.container.scannableId);
+      }
+      // Recursively traverse nested children
+      if (child.childContainers && child.childContainers.length > 0) {
+        traverse(child);
+      }
+    }
+  }
+  
+  traverse(container);
+  return ids;
 }
 
 // === Search Logic ===
@@ -430,4 +496,3 @@ function showModal(msg) {
     setTimeout(() => m.remove(), 300);
   }, 2000);
 }
-
